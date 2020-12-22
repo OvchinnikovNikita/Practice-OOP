@@ -6,6 +6,7 @@
 #include <queue>
 #include <algorithm>
 #include <set>
+#include <stack>
 
 using namespace std;
 
@@ -19,6 +20,7 @@ private:
 	int edge = 0; // Количество ребер, ещё нигде не использовал, но алгоритм на всякий случай считает, может когда-нибудь пригодится
 	vector <vector <int>> vec_Adjacencylist;
 	vector <vector <int>> vec_AdjacencyMatrix;
+	vector <vector <int>> vec_AdjacencyMatrix_for_Hierholzer; // Копия vec_AdjacencyMatrix, нужна для работы поиска цикла Эйлера. Изменять AdjacencyMatrix жалко, поэтому имзменяю его копию, весь этот процесс идёт в привате, поэтому мне не стыдно
 	vector <vector <int>> vec_IncidenceMatrix;
 	vector <int> used; // Вектор использованных вершин алгоритма DFS инициализирован нулями
 
@@ -47,7 +49,7 @@ private:
 		cout << k + 1 << " ";
 		VP(k, f, p); // Ищем путь между k и f (середина - конец)
 	}
-
+	
 	void DFS_to_find_hinges(int s, vector<bool>& used_v, int p = -1) 
 	{// p - вершина, которая рассматривалось на прошлой итерации ФУНКЦИИ, если итерация функции первая, p по умолчанию принимает -1
 		used_v[s] = true;
@@ -83,6 +85,25 @@ private:
 		if (p == -1 && c >= 2) // Если первая итерация, значит мы в корне, значит p == -1, если детей больше или равно, чем 2, то корень - шарнир. 
 			set_to_find_hinges.insert(s);
 	}
+
+	int v_has_a_neighbor(int v) // Просто проверяет на наличие соседа. Работает в матрице
+	{
+		int k = -1;
+		for (int i = 0; i < vec_AdjacencyMatrix_for_Hierholzer[v].size(); ++i) //vec_AdjacencyMatrix_for_Hierholzer - просто копия матрицы смежности.
+		{
+			k = vec_AdjacencyMatrix_for_Hierholzer[v][i];
+
+			if (k != 0)
+			{
+				vec_AdjacencyMatrix_for_Hierholzer[v][i] = 0; // Удаляем ребро из матрицы
+				vec_AdjacencyMatrix_for_Hierholzer[i][v] = 0;
+
+				return i; // Возвращаем вершину
+			}
+		}
+		return -1; // Если нет соседей
+	}
+
 
 public:
 	void Set_Adjacencylist()
@@ -132,6 +153,7 @@ public:
 		if (set_adj_list)
 		{
 			vec_AdjacencyMatrix.resize(row);
+			used.resize(row, 0);
 			for (int i = 0; i < vec_AdjacencyMatrix.size(); i++)
 			{
 				for (int j = 0; j < row; j++)
@@ -167,6 +189,8 @@ public:
 			{
 				row++;
 				vec_AdjacencyMatrix.resize(row);
+				vec_AdjacencyMatrix_for_Hierholzer.resize(row);
+				used.resize(row, 0);
 
 				stringstream s2;
 				s2 << s;
@@ -186,6 +210,7 @@ public:
 					j = row;
 					j--;
 					vec_AdjacencyMatrix.at(j).push_back(v_j.at(i));
+					vec_AdjacencyMatrix_for_Hierholzer.at(j).push_back(v_j.at(i));
 				}
 
 				v_j.clear();
@@ -474,8 +499,6 @@ public:
 		
 	}
 
-	// -------------------- Алгоритмы, которые вы ещё не смотрели. 
-
 	void Floyd_Warshall(int S, int F)
 	{
 		int s = --S; 
@@ -663,7 +686,35 @@ public:
 		cout << endl;
 	}
 
+	// -------------------- Алгоритмы, которые вы ещё не смотрели. 
 
+	void Hierholzer(int S)
+	{
+		// Для работы должен быть считан список смежности 
+		int s = S; // Стартовая вершина, может быть любой
+		int v;
+
+		stack <int> st; // рабочий стек
+		st.push(s);  
+
+		while (!st.empty()) // пока стек не пуст
+		{
+			v = st.top();
+			
+			// функция находится в привате класса. строка 89.
+			int u = v_has_a_neighbor(v); // проверяем на наличие соседей. Если есть - выводим его, в противном случае вернёт -1
+			
+			if (u != -1)
+			{
+				st.push(u);
+			}
+			else
+			{
+				st.pop();
+				cout << v << " "; // Выводит вершины
+			}
+		}
+	}
 };
 
 int main()
@@ -672,33 +723,9 @@ int main()
 	freopen("input.txt", "r", stdin);
 
 	Graph graph;
-
-	// Блок 1
-	// Флойд - Уоршалл
-	graph.Set_AdjacencyMatrix(); // Считает матрицу смежности
-	cout << "-------------------------------------" << endl;
-	cout << "Результат работы Флойда - Уоршалла:" << endl;
-	graph.Floyd_Warshall(1, 9); // передать стартовую и конечную вершину
-	cout << endl << "-------------------------------------" << endl;
+	graph.Set_AdjacencyMatrix();  // Считывает матрицу 
 	
-	//// Блок 2
-	//// Джонсан. Закоментировать блок Флойда - Уорашалла. Раскомментировать этот. Поменять матрицу в input.txt (вставить граф 2)
-	////Считает матрицу смежности
-	//graph.Set_AdjacencyMatrix();
-	//cout << "-------------------------------------" << endl;
-	//cout << "Результат работы Джонсона" << endl;
-	//graph.Johnson(1);
-	//cout << endl;
-	//cout << "-------------------------------------" << endl;
-
-	// Блок 3
-	//// Блок алгоритма поиска шарниров. Закоментировать прошлый блок, раскомментировать этот. В input.txt поменять матрицу на список соседей
-	//// Считает список соседей
-	//graph.Set_Adjacencylist();
-	//cout << "-------------------------------------" << endl;
-	//graph.Find_hinges(0); // Важно! Вершины графа нужно нумеровать, начиная с нуля, т.е. при заполнении списка соседей
-	//					  //первая вершина - 0, вторая - 1 и т.д, иначе алгоритм будет обращаться за границы векторов и массивов.
-	//cout << "-------------------------------------" << endl;
+	graph.Hierholzer(0); // Вызывает функцию поиска Эйлерова цикла. В вашем файле этот алгоритм носит имя  Хирхольцера, поэтому назвал соответсвующе
 
 	fclose(stdin);
 	return 0;
